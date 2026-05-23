@@ -8,9 +8,8 @@ class DataChunk(BaseModel):
     chunk_metadata: dict 
     chunk_order: int = Field(..., gt=0) # gt = greater than
     chunk_project_id: ObjectId
-    
-    project_id: str  = Field(..., min_length=1) # This value should be at least one char
-    
+    chunk_asset_id: ObjectId
+        
     class Config:
         arbitrary_types_allowed = True
         
@@ -25,3 +24,8 @@ class DataChunk(BaseModel):
                 "unique":False, # If you fine this id before raise error
             }
         ]
+        
+        
+class RetrievedDocument(BaseModel):
+    text: str
+    score: float

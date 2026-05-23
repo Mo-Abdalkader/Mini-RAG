@@ -36,7 +36,7 @@ class ProjectModel(BaseDataModel):
         # exclude_unset=True -> to remove all of the unset values and do not add it to the database (we have to fill it to prevent ignoring)
         
         # We need to await to wait to collect the data | If we didn't we will face and error 
-        project._id = result.inserted_id
+        project.id = result.inserted_id
         return project
     
     async def get_project_or_create_one(self, project_id: str):

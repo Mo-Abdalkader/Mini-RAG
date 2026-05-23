@@ -25,9 +25,11 @@ class ProcessController(BaseController):
         return os.path.splitext(file_id)[-1]
     
     def get_file_loader(self, file_id: str):
+        file_ext = self.get_file_extension(file_id=file_id)
         file_path = os.path.join(self.project_path, file_id)
         
-        file_ext = self.get_file_extension(file_id=file_id)
+        if not os.path.exists(file_path):
+            return None
         
         if file_ext == ProcessingEnum.TXT.value:
             return TextLoader(file_path, encoding="utf-8")
@@ -39,8 +41,12 @@ class ProcessController(BaseController):
     
     def get_file_content(self, file_id:str):
         loader = self.get_file_loader(file_id=file_id)
-        return loader.load()
-    
+        
+        if loader:
+            return loader.load()
+        else: # by default it returns None, but i added the else, to make something like displaying a message to the user an option
+            return None
+        
     def process_file_content(self, file_content: list, file_id:str,
                              chunk_size: int=100, overlap_size:int=20):
         
@@ -48,7 +54,6 @@ class ProcessController(BaseController):
             chunk_size=chunk_size,
             chunk_overlap =overlap_size,
             length_function=len,
-            
         )
         
         file_content_texts = [
