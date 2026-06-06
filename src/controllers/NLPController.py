@@ -114,6 +114,7 @@ class NLPController(BaseController):
         #     )
             
         # Use comprehension list instead
+        
         document_prompts = "\n".join([
             self.template_parser.get("rag", "document_prompt", {
                     "doc_num": idx+1,
@@ -123,10 +124,11 @@ class NLPController(BaseController):
             for idx, doc in enumerate(retrieved_document)
         ])
         
-        footer_prompt = self.template_parser.get("rag", "footer_prompt")
+        footer_prompt = self.template_parser.get("rag", "footer_prompt",{
+            "query":query
+        })
         
         chat_history = [
-            
             # Add the system prompt once at the beginning of the chat history before the current one  
             self.generation_client.construct_prompt(
                 prompt=system_prompt,
@@ -134,11 +136,21 @@ class NLPController(BaseController):
             )
         ]
         
-        full_prompt = "\n\n".join([query, document_prompts, footer_prompt])
+        full_prompt = "\n\n".join([document_prompts, footer_prompt])
+        
+#         full_prompt = """You are a strict QA assistant. Answer the question at the end using only the context provided below.
+
+# Context:
+# 1. Khaled works at Al-Majd Software Company as a network engineer. His monthly salary is $4500, and he is Ibrahim's cousin and Ahmed's brother.
+# 2. The company's secret project carries the code name 'Phoenix 99', and its files are stored in safe number 4 on the third floor.
+
+# Question: How much is Khaled's monthly salary and what is his job title?
+# Answer:
+# """
         
         answer = self.generation_client.generate_text(
             prompt = full_prompt,
-            chat_history=chat_history
+            chat_history=chat_history,
         )
         
         return answer, full_prompt, chat_history

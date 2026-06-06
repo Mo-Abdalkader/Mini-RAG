@@ -5,6 +5,7 @@ from string import Template
 ### SYSTEM ###
 system_prompt = Template(
                     "\n".join([
+                    "[SYSTEM]",
                     "You are an assistant to generate a response for the user.",
                     "You will be provided by a set of documents associated with the user's query.",
                     "You have to generate a response based on the documents provided.",
@@ -19,6 +20,7 @@ system_prompt = Template(
 ### Document ###
 document_prompt = Template( # Template & jinja
                             "\n".join([
+                                "[CONTEXT]",
                                 "## Document No: $doc_num",
                                 "### Content: $chunk_text",
                             ])
@@ -27,7 +29,10 @@ document_prompt = Template( # Template & jinja
 ### FOOTER ###
 footer_prompt = Template(
     "\n".join([
-        "Based only of the above documents, Please generate an answer for the user.",
-        "## Answer:"
+        "Based only on the above documents, Please generate an answer for the user.",
+        "[USER QUESTION]", # "## Question:"
+        "$query",
+        "",
+        "[ASSISTANT ANSWER]" # "## Answer:"
     ])
 )

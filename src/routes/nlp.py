@@ -111,6 +111,9 @@ async def get_project_index_info(request: Request, project_id:str):
     # This collection info is not JSON, so we can not just retrieve it directly
     collection_info = nlp_controller.get_vector_db_collection_info(project=project)
     
+    # from models import AssetModel
+    # output = AssetModel().get_all_project_assets(project.id, str)
+    
     return JSONResponse(
             content={
                 "signal": ResponseSignal.VECTORDB_COLLECTION_RETRIEVED.value,

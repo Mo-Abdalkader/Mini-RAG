@@ -63,6 +63,8 @@ class OpenAIProvider(LLMInterface):
             model=self.generation_model_id,
             max_tokens=max_output_token,
             temperature=temperature,
+            
+            extra_body={"num_ctx": 8192},
         )
         
         if not response or not response.choices or len(response.choices) == 0 or not response.choices[0].message:
