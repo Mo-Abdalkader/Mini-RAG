@@ -1,0 +1,713 @@
+{
+  "project_overview": {
+    "name": "Mini-RAG",
+    "type": "FastAPI Backend Service",
+    "purpose": "A minimal Retrieval-Augmented Generation (RAG) system for document-based question answering. Handles document upload, processing, text chunking, and MongoDB storage.",
+    "main_features": [
+      "Document Upload API (.txt and .pdf files)",
+      "Document Processing using LangChain loaders",
+      "Text Chunking using RecursiveCharacterTextSplitter",
+      "Project Management with MongoDB",
+      "File Validation (type and size)"
+    ],
+    "high_level_architecture": "MVC Pattern - Routes (API), Controllers (Business Logic), Models (Data Layer)",
+    "framework": "FastAPI + Motor (Async MongoDB)",
+    "database": "MongoDB",
+    "key_dependencies": ["FastAPI", "Motor", "LangChain", "PyMuPDF", "Pydantic", "aiofiles"]
+  },
+  "modules": [
+    {
+      "name": "API Layer",
+      "description": "FastAPI routes and endpoints for the REST API",
+      "files": [
+        "src/routes/base.py",
+        "src/routes/data.py",
+        "src/routes/schemes/data.py"
+      ],
+      "components": ["base_router", "data_router", "ProcessRequest"]
+    },
+    {
+      "name": "Business Logic Layer",
+      "description": "Controllers handling core application logic",
+      "files": [
+        "src/controllers/BaseController.py",
+        "src/controllers/DataController.py",
+        "src/controllers/ProjectController.py",
+        "src/controllers/ProcessController.py"
+      ],
+      "components": ["BaseController", "DataController", "ProjectController", "ProcessController"]
+    },
+    {
+      "name": "Data Layer",
+      "description": "MongoDB models and database operations",
+      "files": [
+        "src/models/BaseDataModel.py",
+        "src/models/ProjectModel.py",
+        "src/models/AssetModel.py",
+        "src/models/ChunkModel.py"
+      ],
+      "components": ["BaseDataModel", "ProjectModel", "AssetModel", "ChunkModel"]
+    },
+    {
+      "name": "Database Schemes",
+      "description": "Pydantic schemas for database documents",
+      "files": [
+        "src/models/db_schemes/project.py",
+        "src/models/db_schemes/data_chunk.py",
+        "src/models/db_schemes/asset.py"
+      ],
+      "components": ["Project", "DataChunk", "Asset"]
+    },
+    {
+      "name": "Enums & Constants",
+      "description": "Enumerations for configuration and response signals",
+      "files": [
+        "src/models/enums/DatabaseEnum.py",
+        "src/models/enums/ProcessingEnum.py",
+        "src/models/enums/ResponseEnum.py",
+        "src/models/enums/AssetTypeEnum.py"
+      ],
+      "components": ["DataBaseEnum", "ProcessingEnum", "ResponseSignal", "AssetTypeEnum"]
+    },
+    {
+      "name": "Configuration",
+      "description": "Settings management using Pydantic",
+      "files": [
+        "src/helpers/config.py"
+      ],
+      "components": ["Settings", "get_settings"]
+    }
+  ],
+  "classes": [
+    {
+      "name": "Settings",
+      "file": "src/helpers/config.py",
+      "responsibility": "Pydantic settings class for environment variable management",
+      "attributes": ["APP_NAME", "APP_VERSION", "OPENAI_API_KEY", "FILE_ALLOWED_TYPES", "FILE_MAX_SIZE", "FILE_DEFAULT_CHUNK_SIZE", "MONGODB_URL", "MONGODB_DATABSE"],
+      "methods": [],
+      "relationships": {
+        "inherits": "BaseSettings from pydantic_settings"
+      }
+    },
+    {
+      "name": "BaseController",
+      "file": "src/controllers/BaseController.py",
+      "responsibility": "Base controller providing common utilities (file paths, random string generation)",
+      "attributes": ["app_settings", "base_dir", "files_dir"],
+      "methods": ["generate_random_string"],
+      "relationships": {
+        "uses": "get_settings from helpers.config"
+      }
+    },
+    {
+      "name": "DataController",
+      "file": "src/controllers/DataController.py",
+      "responsibility": "File validation and unique file path generation",
+      "attributes": ["size_scale"],
+      "methods": ["validate_uploaded_file", "generate_unique_filepath", "get_clean_file_name"],
+      "relationships": {
+        "inherits": "BaseController",
+        "uses": ["ResponseSignal from models", "ProjectController"]
+      }
+    },
+    {
+      "name": "ProjectController",
+      "file": "src/controllers/ProjectController.py",
+      "responsibility": "Project directory management and path creation",
+      "attributes": [],
+      "methods": ["get_project_path"],
+      "relationships": {
+        "inherits": "BaseController",
+        "uses": "os module for directory operations"
+      }
+    },
+    {
+      "name": "ProcessController",
+      "file": "src/controllers/ProcessController.py",
+      "responsibility": "File loading and text chunking using LangChain",
+      "attributes": ["project_id", "project_path"],
+      "methods": ["get_file_extension", "get_file_loader", "get_file_content", "process_file_content"],
+      "relationships": {
+        "inherits": "BaseController",
+        "uses": ["ProjectController", "ProcessingEnum", "TextLoader", "PyMuPDFLoader", "RecursiveCharacterTextSplitter"]
+      }
+    },
+    {
+      "name": "BaseDataModel",
+      "file": "src/models/BaseDataModel.py",
+      "responsibility": "Base class for MongoDB models providing database client access",
+      "attributes": ["db_client", "app_Settings"],
+      "methods": [],
+      "relationships": {
+        "uses": "get_settings from helpers.config"
+      }
+    },
+    {
+      "name": "ProjectModel",
+      "file": "src/models/ProjectModel.py",
+      "responsibility": "MongoDB CRUD operations for projects collection",
+      "attributes": ["collection"],
+      "methods": ["create_instance", "init_collection", "create_project", "get_project_or_create_one", "get_all_projects"],
+      "relationships": {
+        "inherits": "BaseDataModel",
+        "uses": ["Project from db_schemes", "DataBaseEnum"]
+      }
+    },
+    {
+      "name": "ChunkModel",
+      "file": "src/models/ChunkModel.py",
+      "responsibility": "MongoDB CRUD operations for chunks collection with batch processing",
+      "attributes": ["collection"],
+      "methods": ["create_instance", "init_collection", "create_chunk", "get_chunk", "insert_many_chunks", "delete_chunks_by_project_id"],
+      "relationships": {
+        "inherits": "BaseDataModel",
+        "uses": ["DataChunk from db_schemes", "DataBaseEnum", "ObjectId", "InsertOne"]
+      }
+    },
+    {
+      "name": "AssetModel",
+      "file": "src/models/AssetModel.py",
+      "responsibility": "MongoDB CRUD operations for assets collection",
+      "attributes": ["collection"],
+      "methods": ["create_instance", "init_collection", "create_asset", "get_all_project_assets"],
+      "relationships": {
+        "inherits": "BaseDataModel",
+        "uses": ["Asset from db_schemes", "DataBaseEnum", "ObjectId"]
+      }
+    },
+    {
+      "name": "Project",
+      "file": "src/models/db_schemes/project.py",
+      "responsibility": "Pydantic schema for project document in MongoDB",
+      "attributes": ["id", "project_id"],
+      "methods": ["validate_project_id", "get_indices"],
+      "relationships": {
+        "inherits": "BaseModel from pydantic"
+      }
+    },
+    {
+      "name": "DataChunk",
+      "file": "src/models/db_schemes/data_chunk.py",
+      "responsibility": "Pydantic schema for chunk document in MongoDB",
+      "attributes": ["id", "chunk_text", "chunk_metadata", "chunk_order", "chunk_project_id", "project_id"],
+      "methods": ["get_indices"],
+      "relationships": {
+        "inherits": "BaseModel from pydantic"
+      }
+    },
+    {
+      "name": "Asset",
+      "file": "src/models/db_schemes/asset.py",
+      "responsibility": "Pydantic schema for asset document in MongoDB",
+      "attributes": ["id", "asset_project_id", "asset_type", "asset_name", "asset_size", "asset_config", "asset_pushed_at"],
+      "methods": ["get_indices"],
+      "relationships": {
+        "inherits": "BaseModel from pydantic"
+      }
+    },
+    {
+      "name": "ProcessRequest",
+      "file": "src/routes/schemes/data.py",
+      "responsibility": "Pydantic schema for process endpoint request validation",
+      "attributes": ["file_id", "chunk_size", "overlap_size", "do_reset"],
+      "methods": [],
+      "relationships": {
+        "inherits": "BaseModel from pydantic"
+      }
+    }
+  ],
+  "functions": [
+    {
+      "name": "get_settings",
+      "file": "src/helpers/config.py",
+      "purpose": "Returns a singleton Settings instance",
+      "input": [],
+      "output": "Settings instance",
+      "calls": [],
+      "called_by": ["BaseController.__init__", "BaseDataModel.__init__"],
+      "side_effects": "Reads .env file"
+    },
+    {
+      "name": "generate_random_string",
+      "file": "src/controllers/BaseController.py",
+      "purpose": "Generate random alphanumeric string for file ID",
+      "input": "length: int (default=12)",
+      "output": "str",
+      "calls": [],
+      "called_by": ["DataController.generate_unique_filepath"],
+      "side_effects": "None"
+    },
+    {
+      "name": "validate_uploaded_file",
+      "file": "src/controllers/DataController.py",
+      "purpose": "Validate file type and size",
+      "input": "file: UploadFile",
+      "output": "tuple(bool, str)",
+      "calls": ["ResponseSignal.value"],
+      "called_by": ["routes/data.py upload_data endpoint"],
+      "side_effects": "None"
+    },
+    {
+      "name": "generate_unique_filepath",
+      "file": "src/controllers/DataController.py",
+      "purpose": "Generate unique file path with random key prefix",
+      "input": "original_file_name: str, project_id: str",
+      "output": "tuple(str, str) - (file_path, file_id)",
+      "calls": ["generate_random_string", "ProjectController.get_project_path", "get_clean_file_name"],
+      "called_by": ["routes/data.py upload_data endpoint"],
+      "side_effects": "None"
+    },
+    {
+      "name": "get_clean_file_name",
+      "file": "src/controllers/DataController.py",
+      "purpose": "Clean filename by removing special characters",
+      "input": "original_file_name: str",
+      "output": "str",
+      "calls": ["re.sub"],
+      "called_by": ["DataController.generate_unique_filepath"],
+      "side_effects": "None"
+    },
+    {
+      "name": "get_project_path",
+      "file": "src/controllers/ProjectController.py",
+      "purpose": "Get or create project directory path",
+      "input": "project_id: str",
+      "output": "str - project directory path",
+      "calls": ["os.path.join", "os.makedirs"],
+      "called_by": ["DataController.generate_unique_filepath", "ProcessController.__init__", "routes/data.py upload_data"],
+      "side_effects": "Creates directory if not exists"
+    },
+    {
+      "name": "get_file_extension",
+      "file": "src/controllers/ProcessController.py",
+      "purpose": "Extract file extension from filename",
+      "input": "file_id: str",
+      "output": "str",
+      "calls": ["os.path.splitext"],
+      "called_by": ["ProcessController.get_file_loader"],
+      "side_effects": "None"
+    },
+    {
+      "name": "get_file_loader",
+      "file": "src/controllers/ProcessController.py",
+      "purpose": "Get appropriate LangChain loader for file type",
+      "input": "file_id: str",
+      "output": "TextLoader or PyMuPDFLoader or None",
+      "calls": ["get_file_extension", "os.path.join", "ProcessingEnum"],
+      "called_by": ["ProcessController.get_file_content"],
+      "side_effects": "None"
+    },
+    {
+      "name": "get_file_content",
+      "file": "src/controllers/ProcessController.py",
+      "purpose": "Load file content using appropriate loader",
+      "input": "file_id: str",
+      "output": "list of Document",
+      "calls": ["get_file_loader"],
+      "called_by": ["routes/data.py process_endpoint"],
+      "side_effects": "None"
+    },
+    {
+      "name": "process_file_content",
+      "file": "src/controllers/ProcessController.py",
+      "purpose": "Split document content into chunks using RecursiveCharacterTextSplitter",
+      "input": "file_content: list, file_id: str, chunk_size: int=100, overlap_size: int=20",
+      "output": "list of Document (chunks)",
+      "calls": ["RecursiveCharacterTextSplitter.create_documents"],
+      "called_by": ["routes/data.py process_endpoint"],
+      "side_effects": "None"
+    },
+    {
+      "name": "welcome",
+      "file": "src/routes/base.py",
+      "purpose": "Health check endpoint returning app info",
+      "input": "app_settings: Settings (dependency)",
+      "output": "dict with app_name and app_version",
+      "calls": [],
+      "called_by": "FastAPI routing",
+      "side_effects": "None"
+    },
+    {
+      "name": "upload_data",
+      "file": "src/routes/data.py",
+      "purpose": "Upload file endpoint - validates, saves file, creates asset record",
+      "input": "request: Request, project_id: str, file: UploadFile, app_settings: Settings",
+      "output": "JSONResponse with signal and file_id",
+      "calls": ["ProjectModel.create_instance", "ProjectModel.get_project_or_create_one", "DataController.validate_uploaded_file", "ProjectController.get_project_path", "DataController.generate_unique_filepath", "aiofiles.open", "AssetModel.create_instance", "Asset.create_asset"],
+      "called_by": "FastAPI routing",
+      "side_effects": "Writes file to disk, creates asset in MongoDB"
+    },
+    {
+      "name": "process_endpoint",
+      "file": "src/routes/data.py",
+      "purpose": "Process file endpoint - loads file, splits into chunks, stores in MongoDB",
+      "input": "request: Request, project_id: str, process_request: ProcessRequest",
+      "output": "JSONResponse with signal and inserted_chunks count",
+      "calls": ["ProjectModel.create_instance", "ProjectModel.get_project_or_create_one", "ProcessController.__init__", "ProcessController.get_file_content", "ProcessController.process_file_content", "ChunkModel.create_instance", "ChunkModel.delete_chunks_by_project_id", "ChunkModel.insert_many_chunks", "DataChunk"],
+      "called_by": "FastAPI routing",
+      "side_effects": "Creates chunks in MongoDB"
+    },
+    {
+      "name": "create_instance (ProjectModel)",
+      "file": "src/models/ProjectModel.py",
+      "purpose": "Factory method to create async initialized model instance",
+      "input": "db_client: object",
+      "output": "ProjectModel instance",
+      "calls": ["init_collection"],
+      "called_by": ["routes/data.py upload_data, process_endpoint"],
+      "side_effects": "Creates collection and indices if not exist"
+    },
+    {
+      "name": "create_project",
+      "file": "src/models/ProjectModel.py",
+      "purpose": "Insert new project document into MongoDB",
+      "input": "project: Project",
+      "output": "Project with id set",
+      "calls": ["collection.insert_one"],
+      "called_by": ["ProjectModel.get_project_or_create_one"],
+      "side_effects": "Inserts document into MongoDB"
+    },
+    {
+      "name": "get_project_or_create_one",
+      "file": "src/models/ProjectModel.py",
+      "purpose": "Find existing project or create new one",
+      "input": "project_id: str",
+      "output": "Project object",
+      "calls": ["collection.find_one", "Project.create_project"],
+      "called_by": ["routes/data.py upload_data, process_endpoint"],
+      "side_effects": "Creates new project in MongoDB if not exists"
+    },
+    {
+      "name": "get_all_projects",
+      "file": "src/models/ProjectModel.py",
+      "purpose": "Paginated retrieval of all projects",
+      "input": "page: int=1, page_size: int=10",
+      "output": "tuple(list of Project, total_pages: int)",
+      "calls": ["collection.count_documents", "collection.find"],
+      "called_by": "Not currently used (potential future endpoint)",
+      "side_effects": "Reads from MongoDB"
+    },
+    {
+      "name": "create_instance (ChunkModel)",
+      "file": "src/models/ChunkModel.py",
+      "purpose": "Factory method to create async initialized model instance",
+      "input": "db_client: object",
+      "output": "ChunkModel instance",
+      "calls": ["init_collection"],
+      "called_by": ["routes/data.py process_endpoint"],
+      "side_effects": "Creates collection and indices if not exist"
+    },
+    {
+      "name": "insert_many_chunks",
+      "file": "src/models/ChunkModel.py",
+      "purpose": "Batch insert chunks using bulk_write for efficiency",
+      "input": "chunks: list, batch_size: int=100",
+      "output": "int - number of inserted chunks",
+      "calls": ["collection.bulk_write", "InsertOne"],
+      "called_by": ["routes/data.py process_endpoint"],
+      "side_effects": "Inserts multiple documents into MongoDB"
+    },
+    {
+      "name": "delete_chunks_by_project_id",
+      "file": "src/models/ChunkModel.py",
+      "purpose": "Delete all chunks for a project (used when do_reset=1)",
+      "input": "project_id: ObjectId",
+      "output": "int - number of deleted documents",
+      "calls": ["collection.delete_many"],
+      "called_by": ["routes/data.py process_endpoint"],
+      "side_effects": "Deletes documents from MongoDB"
+    },
+    {
+      "name": "create_instance (AssetModel)",
+      "file": "src/models/AssetModel.py",
+      "purpose": "Factory method to create async initialized model instance",
+      "input": "db_client: object",
+      "output": "AssetModel instance",
+      "calls": ["init_collection"],
+      "called_by": ["routes/data.py upload_data"],
+      "side_effects": "Creates collection and indices if not exist"
+    },
+    {
+      "name": "create_asset",
+      "file": "src/models/AssetModel.py",
+      "purpose": "Insert new asset document into MongoDB",
+      "input": "asset: Asset",
+      "output": "Asset with id set",
+      "calls": ["collection.insert_one"],
+      "called_by": ["routes/data.py upload_data"],
+      "side_effects": "Inserts document into MongoDB"
+    },
+    {
+      "name": "get_all_project_assets",
+      "file": "src/models/AssetModel.py",
+      "purpose": "Retrieve all assets for a project",
+      "input": "asset_project_id: str",
+      "output": "list of Asset documents",
+      "calls": ["collection.find"],
+      "called_by": "Not currently used (potential future endpoint)",
+      "side_effects": "Reads from MongoDB"
+    }
+  ],
+  "relationships": [
+    {
+      "source": "Settings",
+      "target": "BaseSettings",
+      "type": "inherits"
+    },
+    {
+      "source": "BaseController",
+      "target": "get_settings",
+      "type": "depends_on"
+    },
+    {
+      "source": "DataController",
+      "target": "BaseController",
+      "type": "inherits"
+    },
+    {
+      "source": "DataController",
+      "target": "ProjectController",
+      "type": "uses"
+    },
+    {
+      "source": "DataController",
+      "target": "ResponseSignal",
+      "type": "uses"
+    },
+    {
+      "source": "ProjectController",
+      "target": "BaseController",
+      "type": "inherits"
+    },
+    {
+      "source": "ProcessController",
+      "target": "BaseController",
+      "type": "inherits"
+    },
+    {
+      "source": "ProcessController",
+      "target": "ProjectController",
+      "type": "uses"
+    },
+    {
+      "source": "ProcessController",
+      "target": "ProcessingEnum",
+      "type": "uses"
+    },
+    {
+      "source": "ProcessController",
+      "target": "TextLoader",
+      "type": "uses"
+    },
+    {
+      "source": "ProcessController",
+      "target": "PyMuPDFLoader",
+      "type": "uses"
+    },
+    {
+      "source": "ProcessController",
+      "target": "RecursiveCharacterTextSplitter",
+      "type": "uses"
+    },
+    {
+      "source": "BaseDataModel",
+      "target": "get_settings",
+      "type": "depends_on"
+    },
+    {
+      "source": "ProjectModel",
+      "target": "BaseDataModel",
+      "type": "inherits"
+    },
+    {
+      "source": "ProjectModel",
+      "target": "Project",
+      "type": "uses"
+    },
+    {
+      "source": "ProjectModel",
+      "target": "DataBaseEnum",
+      "type": "uses"
+    },
+    {
+      "source": "ChunkModel",
+      "target": "BaseDataModel",
+      "type": "inherits"
+    },
+    {
+      "source": "ChunkModel",
+      "target": "DataChunk",
+      "type": "uses"
+    },
+    {
+      "source": "ChunkModel",
+      "target": "DataBaseEnum",
+      "type": "uses"
+    },
+    {
+      "source": "AssetModel",
+      "target": "BaseDataModel",
+      "type": "inherits"
+    },
+    {
+      "source": "AssetModel",
+      "target": "Asset",
+      "type": "uses"
+    },
+    {
+      "source": "AssetModel",
+      "target": "DataBaseEnum",
+      "type": "uses"
+    },
+    {
+      "source": "Project",
+      "target": "BaseModel",
+      "type": "inherits"
+    },
+    {
+      "source": "DataChunk",
+      "target": "BaseModel",
+      "type": "inherits"
+    },
+    {
+      "source": "Asset",
+      "target": "BaseModel",
+      "type": "inherits"
+    },
+    {
+      "source": "ProcessRequest",
+      "target": "BaseModel",
+      "type": "inherits"
+    },
+    {
+      "source": "main.py (app)",
+      "target": "base_router",
+      "type": "uses"
+    },
+    {
+      "source": "main.py (app)",
+      "target": "data_router",
+      "type": "uses"
+    },
+    {
+      "source": "upload_data (route)",
+      "target": "ProjectModel.create_instance",
+      "type": "calls"
+    },
+    {
+      "source": "upload_data (route)",
+      "target": "ProjectModel.get_project_or_create_one",
+      "type": "calls"
+    },
+    {
+      "source": "upload_data (route)",
+      "target": "DataController.validate_uploaded_file",
+      "type": "calls"
+    },
+    {
+      "source": "upload_data (route)",
+      "target": "ProjectController.get_project_path",
+      "type": "calls"
+    },
+    {
+      "source": "upload_data (route)",
+      "target": "DataController.generate_unique_filepath",
+      "type": "calls"
+    },
+    {
+      "source": "upload_data (route)",
+      "target": "AssetModel.create_instance",
+      "type": "calls"
+    },
+    {
+      "source": "upload_data (route)",
+      "target": "Asset.create_asset",
+      "type": "calls"
+    },
+    {
+      "source": "process_endpoint (route)",
+      "target": "ProjectModel.create_instance",
+      "type": "calls"
+    },
+    {
+      "source": "process_endpoint (route)",
+      "target": "ProjectModel.get_project_or_create_one",
+      "type": "calls"
+    },
+    {
+      "source": "process_endpoint (route)",
+      "target": "ProcessController.__init__",
+      "type": "calls"
+    },
+    {
+      "source": "process_endpoint (route)",
+      "target": "ProcessController.get_file_content",
+      "type": "calls"
+    },
+    {
+      "source": "process_endpoint (route)",
+      "target": "ProcessController.process_file_content",
+      "type": "calls"
+    },
+    {
+      "source": "process_endpoint (route)",
+      "target": "ChunkModel.create_instance",
+      "type": "calls"
+    },
+    {
+      "source": "process_endpoint (route)",
+      "target": "ChunkModel.insert_many_chunks",
+      "type": "calls"
+    },
+    {
+      "source": "process_endpoint (route)",
+      "target": "DataChunk",
+      "type": "calls"
+    }
+  ],
+  "execution_flow": [
+    {
+      "flow_name": "Application Startup",
+      "steps": [
+        "1. FastAPI app starts in main.py",
+        "2. startup_db_client() connects to MongoDB using Motor",
+        "3. Registers base_router and data_router"
+      ]
+    },
+    {
+      "flow_name": "File Upload Flow",
+      "steps": [
+        "1. Client calls POST /api/v1/data/upload/{project_id}",
+        "2. upload_data receives project_id and UploadFile",
+        "3. Creates/gets project via ProjectModel.get_project_or_create_one",
+        "4. Validates file via DataController.validate_uploaded_file",
+        "5. Generates unique file path via DataController.generate_unique_filepath",
+        "6. Writes file to disk using aiofiles",
+        "7. Creates Asset record in MongoDB via AssetModel.create_asset",
+        "8. Returns JSONResponse with file_id"
+      ]
+    },
+    {
+      "flow_name": "File Processing Flow",
+      "steps": [
+        "1. Client calls POST /api/v1/data/process/{project_id} with ProcessRequest",
+        "2. process_endpoint receives project_id and ProcessRequest",
+        "3. Creates/gets project via ProjectModel.get_project_or_create_one",
+        "4. Initializes ProcessController with project_id",
+        "5. Loads file content via ProcessController.get_file_content (uses LangChain)",
+        "6. Chunks content via ProcessController.process_file_content (uses RecursiveCharacterTextSplitter)",
+        "7. Optionally deletes existing chunks if do_reset=1",
+        "8. Inserts new chunks via ChunkModel.insert_many_chunks (batch insert)",
+        "9. Returns JSONResponse with inserted_chunks count"
+      ]
+    },
+    {
+      "flow_name": "Health Check Flow",
+      "steps": [
+        "1. Client calls GET /api/v1/",
+        "2. welcome endpoint retrieves settings via Depends(get_settings)",
+        "3. Returns app_name and app_version"
+      ]
+    }
+  ]
+}
